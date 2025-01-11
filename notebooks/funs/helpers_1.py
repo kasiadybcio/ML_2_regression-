@@ -9,6 +9,7 @@ def _cast_data(data :pd.DataFrame, params: dict):
     mapping_dict = {**{x:'category' for x in params['categorical']},
                         **{x:float for x in params['float']},
                         **{x:int for x in params['integer']},
+                        **{x:'datetime64[ms]' for x in params['datetime_ms']},
                         **{x:'datetime64[s]' for x in params['datetime']}}
 
     cols_to_cast = params['categorical']+params['float']+params['integer']+params['datetime']
