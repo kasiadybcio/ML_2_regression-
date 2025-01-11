@@ -9,3 +9,4 @@ data/outputs/2.feature_engineering/*
 !data/outputs/2.feature_engineering/.gitkeep
 
 *.DS_Store
+*.pyc
