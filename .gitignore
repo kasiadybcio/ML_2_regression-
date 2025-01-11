@@ -1,3 +1,11 @@
-input_data/*
-!input_data/.gitkeep
+data/input/*
+!data/input/.gitkeep
+data/outputs/*
+!data/outputs/.gitkeep
+!data/outputs/*
+data/outputs/1.eda/*
+!data/outputs/1.eda/.gitkeep
+data/outputs/2.feature_engineering/*
+!data/outputs/2.feature_engineering/.gitkeep
+
 *.DS_Store
