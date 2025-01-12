@@ -5,7 +5,7 @@ data/outputs/*
 !data/outputs/*
 data/outputs/1.eda/*
 !data/outputs/1.eda/.gitkeep
-data/outputs/2.feature_engineering/*
+data/outputs/2.feature_engineering/*.pkl
 !data/outputs/2.feature_engineering/.gitkeep
 
 *.DS_Store

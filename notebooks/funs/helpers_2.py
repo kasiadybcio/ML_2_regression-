@@ -234,13 +234,11 @@ def _get_feat_sfs(train, params):
         'LinReg':LinearRegression()
     }
 
-    for name, model in models.items():
-        if name in params['kwarg']:
-            sfs = SequentialFeatureSelector(model,
-                                            n_features_to_select=n_vars,
-                                            direction=params['method'])
-            sfs.fit(train[columns], train[target_col])
-            results[name] = sfs.get_feature_names_out()
+    sfs = SequentialFeatureSelector(models.get(params['kwarg']),
+                                    n_features_to_select=n_vars,
+                                    direction=params['method'])
+    sfs.fit(train[columns], train[target_col])
+    results[params['kwarg']] = sfs.get_feature_names_out()
     return pd.DataFrame(results)
 
 def _get_selected_features(train,params,stat_res=None,corr_res=None):
@@ -253,9 +251,9 @@ def _get_selected_features(train,params,stat_res=None,corr_res=None):
     kwarg = params['kwarg']
     _vars = None
 
-    if method == 'rank_stat' and stat_res:
+    if method == 'rank_stat' and stat_res is not None:
         _vars =  stat_res.sort_values(f'{kwarg}_rank')['variable'].values[:n_vars].tolist()
-    elif method == 'rank_corr' and corr_res:
+    elif method == 'rank_corr' and corr_res is not None:
         _vars = corr_res.sort_values('corr_rank')['variable'].values[:n_vars].tolist()
     elif method in ['forward','backward']:
         _vars = _get_feat_sfs(train, params)[kwarg].values.tolist()
