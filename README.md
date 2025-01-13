@@ -1,8 +1,34 @@
 # Uber & Lyft Price Prediction
 
-## Introduction to the project
+## Project Overview
 
-Services like Uber and Lyft have transformed urban transportation, offering flexibility and convenience to millions of users. This project leverages a comprehensive dataset from Kaggle, featuring Uber and Lyft trip data from Boston, to uncover patterns and relationships affecting ride prices, travel times, and service availability. The primary objective is to gain actionable insights that benefit both users and service providers.
-The dataset contains detailed information about Uber and Lyft rides in Boston, including attributes such as date, time, pickup and drop-off coordinates, ride costs across different service categories, weather conditions and  travel distance.Using this data, the project aims to understand pricing dynamics, such as how factors like time of day, day of the week, and weather influence ride prices. It also seeks to compare Uber and Lyft services to identify differences in pricing strategies, availability, and user experience
+This machine learning project analyzes Uber and Lyft ride data from Boston to predict ride prices, travel times, and service availability. The dataset includes features such as ride costs, weather conditions, and pickup/drop-off locations. Key factors like time of day, day of the week, and weather are used to uncover patterns influencing pricing dynamics, comparing Uber and Lyft pricing strategies.
 
- Dataset: https://www.kaggle.com/datasets/ravi72munde/uber-lyft-cab-prices
+**Dataset**: [Uber & Lyft Cab Prices Dataset](https://www.kaggle.com/datasets/ravi72munde/uber-lyft-cab-prices)
+
+---
+
+## Dataset Features
+
+The dataset includes the following columns:
+- **Distance**: The distance traveled during the ride
+- **Cab Type**: The category of the Uber or Lyft service (e.g., UberX, Lyft XL)
+- **Time Stamp**: Timestamp for each ride
+- **Destination**: Coordinates of the ride’s destination
+- **Source**: Coordinates of the ride’s starting point
+- **Price**: Price of the ride
+- **Surge Multiplier**: Multiplier applied during surge pricing
+- **Location**: Location details of the pickup and drop-off points
+- **Weather Data**:
+  - **Temperature**: Temperature during the ride
+  - **Clouds**: Cloud coverage during the ride
+  - **Pressure**: Atmospheric pressure during the ride
+  - **Rain**: Rain conditions during the ride
+  - **Humidity**: Humidity level during the ride
+  - **Wind**: Wind speed during the ride
+
+---
+
+## Machine Learning Application
+
+Using this data, the project applies machine learning models to predict ride prices and explore factors that drive demand, aiming to understand pricing dynamics and identify patterns in the ride-sharing industry.
