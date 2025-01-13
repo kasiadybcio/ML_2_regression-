@@ -7,12 +7,11 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from sklearn.model_selection import cross_val_score
 from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import AdaBoostRegressor
+from sklearn.model_selection import KFold
 from xgboost import XGBRegressor
-import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, LSTM
 from tensorflow.keras.optimizers import Adam
-from sklearn.model_selection import KFold
 import optuna
 import pandas as pd
 import numpy as np
@@ -39,8 +38,8 @@ def _lstm_param_space(trial):
         'units': trial.suggest_int('units', 10, 100),
         'learning_rate': trial.suggest_float('learning_rate', 1e-4, 1e-2, log=True),
         'batch_size': trial.suggest_categorical('batch_size', [16, 32, 64]),
-        'epochs': trial.suggest_int('epochs', 10, 50),
-        'time_steps': trial.suggest_int('epochs', 5, 20)
+        'epochs': trial.suggest_int('epochs', 5, 20),
+        'time_steps': trial.suggest_int('time_steps', 1, 10)
     }
 
 def _create_lstm_model(params):
@@ -55,7 +54,8 @@ def _create_lstm_model(params):
     model.compile(optimizer=Adam(learning_rate=learning_rate), loss='mse')
     return model
 
-def _train_evaluate_lstm(x_train_fold, y_train_fold, x_val_fold, y_val_fold, params):
+def _train_evaluate_lstm(x_train_fold, y_train_fold, x_val_fold, y_val_fold, params,
+                        many_measures=False):
     """
     Trains an LSTM model on a single fold and returns the MSE score.
     """
@@ -65,18 +65,34 @@ def _train_evaluate_lstm(x_train_fold, y_train_fold, x_val_fold, y_val_fold, par
     num_samples_2 = x_val_fold.shape[0] // time_steps
     params['input_shape']=(time_steps,x_train_fold.shape[1])
 
+    x_train_fold = x_train_fold[:num_samples * time_steps]
+    x_val_fold = x_val_fold[:num_samples_2 * time_steps]
     x_train_fold = x_train_fold.reshape((num_samples, time_steps, x_train_fold.shape[1]))
     x_val_fold = x_val_fold.reshape((num_samples_2, time_steps, x_val_fold.shape[1]))
 
     y_train_fold = y_train_fold[:num_samples]
-    y_val_fold = y_val_fold[:num_samples_2] 
+    y_val_fold = y_val_fold[:num_samples_2]
     # Create and train the LSTM model
     lstm_model = _create_lstm_model(params)
-    lstm_model.fit(x_train_fold, y_train_fold, epochs=params['epochs'], batch_size=32, verbose=0)
+    lstm_model.fit(x_train_fold, y_train_fold, epochs=params['epochs'],
+                batch_size=params['batch_size'], verbose=1)
 
     # Predict and evaluate
-    y_pred = lstm_model.predict(x_val_fold)
-    return mean_squared_error(y_val_fold, y_pred)
+    y_pred = lstm_model.predict(x_val_fold).reshape(-1)
+    y_pred_train = lstm_model.predict(x_train_fold).reshape(-1)
+    if many_measures:
+        return {
+            'mse_test': mean_squared_error(y_val_fold, y_pred),
+            'mse_train': mean_squared_error(y_train_fold, y_pred_train),
+            'mae_test': mean_absolute_error(y_val_fold, y_pred),
+            'mae_train': mean_absolute_error(y_train_fold, y_pred_train),
+            'r2_test': r2_score(y_val_fold, y_pred),
+            'r2_train': r2_score(y_train_fold, y_pred_train),
+            'mape_test': np.mean(np.where(y_val_fold != 0, np.abs(y_val_fold - y_pred) / np.abs(y_val_fold), 0)) * 100,
+            'mape_train': np.mean(np.where(y_train_fold != 0, np.abs(y_train_fold - y_pred_train) / np.abs(y_train_fold), 0)) * 100
+        }
+    else:
+        return mean_squared_error(y_val_fold, y_pred)
 
 def _lstm_cross_val(x_train, y_train, params=None, n_splits=4):
     default_params = {
@@ -91,7 +107,7 @@ def _lstm_cross_val(x_train, y_train, params=None, n_splits=4):
     else:
         params = {**default_params, **params}
 
-    kf = KFold(n_splits=n_splits, shuffle=True, random_state=42)
+    kf = KFold(n_splits=n_splits, shuffle=False)
     mse_scores = []
 
     for train_idx, val_idx in kf.split(x_train):
@@ -101,7 +117,7 @@ def _lstm_cross_val(x_train, y_train, params=None, n_splits=4):
         mse = _train_evaluate_lstm(x_train_fold, y_train_fold, x_val_fold, y_val_fold, params)
         mse_scores.append(mse)
 
-    return -np.mean(mse_scores)
+    return np.mean(mse_scores)
 
 
 def get_initial_score(train, params):
@@ -121,8 +137,8 @@ def get_initial_score(train, params):
         'lstm': 'lstm'
     }
 
-    x_train = train.drop(columns=[target_column]).values
-    y_train = train[target_column].values
+    x_train = train.sort_index().drop(columns=[target_column]).values
+    y_train = train.sort_index()[target_column].values
 
     for name, model in models.items():
         if name == 'lstm':
@@ -142,8 +158,8 @@ def _get_optuna_params(train, model_class, param_space, params):
 
     def objective(trial):
         model_params = param_space(trial)
-        x_train = train.drop(columns=[target_column])
-        y_train = train[target_column]
+        x_train = train.sort_index().drop(columns=[target_column])
+        y_train = train.sort_index()[target_column]
         model = model_class(**model_params)
         score = cross_val_score(model, x_train, y_train,
                                 scoring=scoring_method,
@@ -175,9 +191,9 @@ def optimize_lstm_hyperparams(train, params):
     def objective(trial):
         lstm_params = _lstm_param_space(trial)
         mse_score = _lstm_cross_val(x_train, y_train, lstm_params, n_splits=4)
-        return -mse_score  # higher -MSE is better
+        return mse_score  # higher -MSE is better
 
-    study = optuna.create_study(direction='maximize')
+    study = optuna.create_study(direction='minimize')
     study.optimize(objective, n_trials=n_trials)
 
     return study.best_params
@@ -227,12 +243,12 @@ def _evaluate_model(model, train, test, params, model_type='regression'):
 
     return res_dict, y_pred_train_df, y_pred_test_df
 
-def eval_best_models(train, test, LR_optuna_params, ADA_optuna_params, XGB_optuna_params, LSTM_optuna_params, params):
+def eval_best_models(train, test, LR_optuna_params, ADA_optuna_params, XGB_optuna_params, params):
     models = {
         'xgb': XGBRegressor(**XGB_optuna_params),
         'lr': LinearRegression(**LR_optuna_params),
         'ada': AdaBoostRegressor(**ADA_optuna_params),
-        'lstm': _create_lstm_model(input_shape=(1, train.shape[1] - 1), **LSTM_optuna_params)
+        # 'lstm': _create_lstm_model(input_shape=(1, train.shape[1] - 1), **LSTM_optuna_params)
     }
 
     results = {}
